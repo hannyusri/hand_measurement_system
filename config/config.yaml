@@ -1,0 +1,35 @@
+camera:
+  width: 1920  # Ditingkatkan untuk resolusi Full HD
+  height: 1080  # Ditingkatkan untuk resolusi Full HD
+  fps: 30
+  fullscreen: true  # Menambahkan opsi fullscreen
+
+detection:
+  min_detection_confidence: 0.7
+  min_tracking_confidence: 0.7
+  max_num_hands: 1
+
+visualization:
+  # Panel settings
+  panel_width: 320  # Panel lebih lebar untuk resolusi tinggi
+  panel_opacity: 0.85
+  panel_blur: 25
+  
+  # Colors
+  landmark_color: [180, 180, 180]
+  connection_color: [140, 140, 140]
+  text_color: [200, 200, 200]
+  
+  # Text settings
+  text_size: 0.7  # Ukuran teks lebih besar untuk resolusi tinggi
+  text_thickness: 1
+  header_text_size: 0.8
+  
+  # Layout
+  margin: 20
+  padding: 15
+  line_spacing: 30
+  
+  # Window settings
+  window_title: "Hand Measurement System"
+  window_position: [-1, -1]  # Centered on screen
