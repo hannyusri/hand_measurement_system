@@ -11,10 +11,10 @@ def load_config():
         return yaml.safe_load(f)
 
 def calculate_object_pixels(frame):
-    """Menghitung panjang objek referensi dalam pixel"""
+    """Calculate reference object pixels with better accuracy"""
     height, width = frame.shape[:2]
-    # Menggunakan 15% dari lebar frame sebagai referensi
-    return int(width * 0.15)
+    # Using 20% of frame width as reference (typical credit card width)
+    return int(width * 0.20)
 
 def main():
     # Load configuration
@@ -30,18 +30,20 @@ def main():
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, config['camera']['width'])
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config['camera']['height'])
+    cap.set(cv2.CAP_PROP_FPS, config['camera']['fps'])
     
-    # Baca frame pertama untuk kalibrasi awal
+    # Initial calibration
     success, frame = cap.read()
     if success:
-        # Gunakan 15% dari lebar frame sebagai referensi
         reference_pixels = calculate_object_pixels(frame)
-        # Kalibrasi dengan kartu standar (8.56 cm)
         calibrator.calibrate(reference_pixels)
     
-    print("=== Sistem Pengukuran Tangan ===")
-    print("Tekan 'c' untuk kalibrasi ulang")
-    print("Tekan 'q' untuk keluar")
+    print("\n=== Hand Measurement System ===")
+    print("Instructions:")
+    print("1. Hold a credit card or ID card horizontally")
+    print("2. Press 'c' to calibrate using the card")
+    print("3. After calibration, show your hand to measure")
+    print("4. Press 'q' to quit\n")
     
     while cap.isOpened():
         success, frame = cap.read()
@@ -56,8 +58,17 @@ def main():
                 # Calculate dimensions
                 dimensions = calculator.get_hand_dimensions(hand_landmarks)
                 
-                # Draw everything
+                # Draw visualization
                 frame = drawer.draw_frame(frame, hand_landmarks, dimensions)
+        
+        # Show calibration status
+        status = calibrator.get_calibration_status()
+        if status['is_calibrated']:
+            cv2.putText(frame, "Calibrated", (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        else:
+            cv2.putText(frame, "Not Calibrated", (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         
         # Show frame
         cv2.imshow('Hand Measurement System', frame)
@@ -66,10 +77,10 @@ def main():
         if key == ord('q'):
             break
         elif key == ord('c'):
-            # Kalibrasi ulang
             reference_pixels = calculate_object_pixels(frame)
             if calibrator.calibrate(reference_pixels):
-                print("Kalibrasi ulang berhasil")
+                print("\nCalibration successful!")
+                print("You can now proceed with hand measurements")
             
     cap.release()
     cv2.destroyAllWindows()

@@ -181,10 +181,17 @@ class Drawer:
             cv2.circle(frame, (x, y), thickness, current_color, -1)
 
     def draw_dashed_line(self, frame, p1, p2, color, dash_length=5):
-        """Menggambar garis putus-putus"""
+        """Menggambar garis putus-putus dengan penanganan kasus khusus"""
         dx = p2[0] - p1[0]
         dy = p2[1] - p1[1]
         dist = math.sqrt(dx * dx + dy * dy)
+        
+        # Jika jarak terlalu kecil, gambar titik saja
+        if dist < 1:
+            cv2.circle(frame, p1, 1, color, -1)
+            return
+        
+        # Normalisasi vektor arah
         dx = dx / dist
         dy = dy / dist
         
@@ -197,6 +204,10 @@ class Drawer:
             y1 = int(curr_y)
             x2 = int(curr_x + dx * dash_length)
             y2 = int(curr_y + dy * dash_length)
+            
+            # Pastikan koordinat valid
+            x2 = min(max(x2, 0), frame.shape[1] - 1)
+            y2 = min(max(y2, 0), frame.shape[0] - 1)
             
             cv2.line(frame, (x1, y1), (x2, y2), color, 1)
             curr_x += dx * step
