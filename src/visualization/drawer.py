@@ -31,12 +31,12 @@ class Drawer:
             return frame
             
         height, width, _ = frame.shape
-        panel_width = 300
+        panel_width = 330
         
         # Buat panel semi-transparan dengan warna abu-abu gelap
         overlay = frame.copy()
         cv2.rectangle(overlay, (0, 0), 
-                     (panel_width, 330), (40, 40, 40), -1)
+                     (panel_width, 410), (40, 40, 40), -1)
         
         # Tambahkan transparansi
         alpha = 0.85

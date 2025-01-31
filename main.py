@@ -64,10 +64,10 @@ def main():
         # Show calibration status
         status = calibrator.get_calibration_status()
         if status['is_calibrated']:
-            cv2.putText(frame, "Calibrated", (10, 30), 
+            cv2.putText(frame, "Calibrated", (1110, 30), 
                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         else:
-            cv2.putText(frame, "Not Calibrated", (10, 30),
+            cv2.putText(frame, "Not Calibrated", (1095, 30),
                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         
         # Show frame
