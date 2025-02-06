@@ -10,7 +10,7 @@ class HandArmDetector:
             max_num_hands=1,          # Maksimal 1 tangan dideteksi
             min_detection_confidence=0.7  # confidence 70% biar akurat << lebih tinggi confidence lebih akurat
         )
-        self.mp_draw = mp.solutions.drawing_utils  # Utility untuk gambar landmarks
+        self.mp_draw = mp.solutions.drawing_utils # Modul untuk menggambar landmark
         
     def find_landmarks(self, frame):
         # Konversi warna frame ke RGB karena MediaPipe pake format RGB
@@ -27,7 +27,6 @@ class HandArmDetector:
                     h, w, c = frame.shape
                     cx, cy = int(lm.x * w), int(lm.y * h)  # Konversi koordinat ke pixel
                     hand_landmarks.append([cx, cy])
-                    # Tampilkan ID landmark di frame
                     cv2.putText(frame, str(id), (cx-10, cy+5), 
                               cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 0), 1)
                 
