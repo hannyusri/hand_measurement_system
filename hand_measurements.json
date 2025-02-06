@@ -1,0 +1,40 @@
+[
+    {
+        "timestamp": "2025-02-06 13:10:59",
+        "hand_number": 1,
+        "measurements": {
+            "Panjang Lengan Bawah": "22.8",
+            "Lebar Telapak (Thumb-Pinky)": "13.4",
+            "Ibu Jari": {
+                "Total": "11.1",
+                "Ruas 1": "4.3",
+                "Ruas 2": "3.9",
+                "Ruas 3": "3.1"
+            },
+            "Telunjuk": {
+                "Total": "10.3",
+                "Ruas 1": "5.4",
+                "Ruas 2": "2.8",
+                "Ruas 3": "2.2"
+            },
+            "Tengah": {
+                "Total": "11.6",
+                "Ruas 1": "5.8",
+                "Ruas 2": "3.3",
+                "Ruas 3": "2.5"
+            },
+            "Manis": {
+                "Total": "11.2",
+                "Ruas 1": "5.5",
+                "Ruas 2": "3.3",
+                "Ruas 3": "2.4"
+            },
+            "Kelingking": {
+                "Total": "8.8",
+                "Ruas 1": "4.2",
+                "Ruas 2": "2.6",
+                "Ruas 3": "2.1"
+            }
+        }
+    }
+]
