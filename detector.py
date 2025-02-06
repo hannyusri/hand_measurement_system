@@ -24,7 +24,7 @@ class HandArmDetector:
             for hand_lms in hand_results.multi_hand_landmarks:
                 # Ambil koordinat tiap landmark dan tambahkan ID-nya
                 for id, lm in enumerate(hand_lms.landmark):
-                    h, w, c = frame.shape
+                    h, w, c = frame.shape # height, width, channel
                     cx, cy = int(lm.x * w), int(lm.y * h)  # Konversi koordinat ke pixel
                     hand_landmarks.append([cx, cy])
                     cv2.putText(frame, str(id), (cx-10, cy+5), 
