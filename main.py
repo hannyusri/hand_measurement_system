@@ -26,18 +26,21 @@ def main():
             cap = cv2.VideoCapture(url)
             continue
 
+        # Potong 20% pinggiran frame biar fokus ke tengah
         height, width = frame.shape[:2]
         crop_percent = 20
         crop_height = int(height * crop_percent / 100)
         crop_width = int(width * crop_percent / 100)
         frame = frame[crop_height:height-crop_height, crop_width:width-crop_width]
 
+        # Kecilin frame jadi 70% 
         scale_percent = 70
         width = int(frame.shape[1] * scale_percent / 100)
         height = int(frame.shape[0] * scale_percent / 100)
         dim = (width, height)
         frame = cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
 
+        # Puterin frame 90° biar portrait 
         frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
 
         # Referensi kotak kalibrasi ( bisa menggunakan ktp atau yang sejenis)
