@@ -4,8 +4,9 @@ import numpy as np
 import math
 
 class Drawer:
-    def __init__(self, config):
+    def __init__(self, config, calibrator):
         self.config = config
+        self.calibrator = calibrator
         self.mp_draw = mp.solutions.drawing_utils
         self.mp_hands = mp.solutions.hands
         self.colors = {
@@ -25,18 +26,72 @@ class Drawer:
             'forearm': 'Lengan Bawah'
         }
 
+    def draw_dashed_rectangle(self, frame, start_point, end_point, color, thickness=2, dash_length=10):
+        """Helper function to draw dashed rectangle"""
+        x1, y1 = start_point
+        x2, y2 = end_point
+        
+        # Draw horizontal dashed lines
+        for x in range(x1, x2, dash_length * 2):
+            x_end = min(x + dash_length, x2)
+            # Top line
+            cv2.line(frame, (x, y1), (x_end, y1), color, thickness)
+            # Bottom line
+            cv2.line(frame, (x, y2), (x_end, y2), color, thickness)
+            
+        # Draw vertical dashed lines
+        for y in range(y1, y2, dash_length * 2):
+            y_end = min(y + dash_length, y2)
+            # Left line
+            cv2.line(frame, (x1, y), (x1, y_end), color, thickness)
+            # Right line
+            cv2.line(frame, (x2, y), (x2, y_end), color, thickness)
+
+    def draw_calibration_guide(self, frame):
+        """Menambahkan panduan visual untuk kalibrasi kartu"""
+        height, width, _ = frame.shape
+        center_x = width // 2
+        
+        # Gambar area target untuk kartu
+        card_width = int(width * 0.17)  # 17% dari lebar frame
+        card_height = int(card_width * 0.63)  # Rasio kartu kredit standar
+        
+        card_x1 = center_x - (card_width // 2)
+        card_x2 = center_x + (card_width // 2)
+        card_y1 = height // 2 - (card_height // 2)
+        card_y2 = height // 2 + (card_height // 2)
+        
+        # Gambar kotak panduan dengan garis putus-putus
+        self.draw_dashed_rectangle(frame, 
+                                 (card_x1, card_y1),
+                                 (card_x2, card_y2),
+                                 (0, 255, 0), 2)
+        
+        # Tambahkan teks panduan
+        cv2.putText(frame, "Posisikan kartu di dalam kotak",
+                    (card_x1, card_y1 - 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        
+        # Tambahkan indikator jarak
+        cv2.line(frame, (center_x, height - 50), (center_x, height - 30),
+                (0, 255, 0), 2)
+        cv2.putText(frame, "50cm", (center_x - 20, height - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        
+        return frame
+
     def create_info_panel(self, frame, dimensions):
         """Membuat panel informasi dengan gaya Windows"""
         if dimensions is None:
             return frame
             
         height, width, _ = frame.shape
-        panel_width = 300
+        panel_width = 330
         
         # Buat panel semi-transparan dengan warna abu-abu gelap
         overlay = frame.copy()
         cv2.rectangle(overlay, (0, 0), 
-                     (panel_width, 330), (40, 40, 40), -1)
+                     (panel_width, 410), (40, 40, 40), -1)
         
         # Tambahkan transparansi
         alpha = 0.85
@@ -78,7 +133,6 @@ class Drawer:
         # Tampilkan pengukuran jari-jari
         for finger_name, indo_name in self.finger_names.items():
             if finger_name != 'forearm':
-                # Cek ketersediaan data pengukuran
                 length_key = f'{finger_name}_length_cm'
                 tip_dip_key = f'{finger_name}_tip_to_dip_cm'
                 
@@ -181,10 +235,17 @@ class Drawer:
             cv2.circle(frame, (x, y), thickness, current_color, -1)
 
     def draw_dashed_line(self, frame, p1, p2, color, dash_length=5):
-        """Menggambar garis putus-putus"""
+        """Menggambar garis putus-putus dengan penanganan kasus khusus"""
         dx = p2[0] - p1[0]
         dy = p2[1] - p1[1]
         dist = math.sqrt(dx * dx + dy * dy)
+        
+        # Jika jarak terlalu kecil, gambar titik saja
+        if dist < 1:
+            cv2.circle(frame, p1, 1, color, -1)
+            return
+        
+        # Normalisasi vektor arah
         dx = dx / dist
         dy = dy / dist
         
@@ -197,6 +258,10 @@ class Drawer:
             y1 = int(curr_y)
             x2 = int(curr_x + dx * dash_length)
             y2 = int(curr_y + dy * dash_length)
+            
+            # Pastikan koordinat valid
+            x2 = min(max(x2, 0), frame.shape[1] - 1)
+            y2 = min(max(y2, 0), frame.shape[0] - 1)
             
             cv2.line(frame, (x1, y1), (x2, y2), color, 1)
             curr_x += dx * step
@@ -221,6 +286,10 @@ class Drawer:
 
     def draw_frame(self, frame, hand_landmarks, dimensions):
         """Fungsi utama untuk menggambar semua elemen"""
+        # Tambahkan panduan kalibrasi jika belum terkalibrasi
+        if not self.calibrator.is_calibrated:
+            frame = self.draw_calibration_guide(frame)
+            
         if hand_landmarks:
             # Gambar landmark
             self.draw_landmarks(frame, hand_landmarks)

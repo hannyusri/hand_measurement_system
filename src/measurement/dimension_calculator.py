@@ -10,93 +10,108 @@ class DimensionCalculator:
             'wrist_to_middle': [],
             'forearm': []
         }
-        self.buffer_size = 5
+        self.buffer_size = 10  # Increased buffer size for better stability
         
-        # Definisi indeks landmark
+        # Landmark definitions
         self.finger_tips = {
-            'thumb': 4,      # Ibu jari
-            'index': 8,      # Telunjuk
-            'middle': 12,    # Jari tengah
-            'ring': 16,      # Jari manis
-            'pinky': 20      # Kelingking
+            'thumb': 4,
+            'index': 8,
+            'middle': 12,
+            'ring': 16,
+            'pinky': 20
+        }
+        self.finger_mcp = {  # Base of fingers
+            'thumb': 2,
+            'index': 5,
+            'middle': 9,
+            'ring': 13,
+            'pinky': 17
         }
         self.finger_dips = {
-            'thumb': 3,      # Ibu jari
-            'index': 7,      # Telunjuk
-            'middle': 11,    # Jari tengah
-            'ring': 15,      # Jari manis
-            'pinky': 19      # Kelingking
+            'thumb': 3,
+            'index': 7,
+            'middle': 11,
+            'ring': 15,
+            'pinky': 19
         }
-        self.forearm_landmarks = {
-            'wrist': 0,      # Pergelangan tangan
-            'wrist_end': 9   # Titik referensi di pergelangan
+        self.wrist_landmarks = {
+            'wrist': 0,
+            'wrist_end': 9
         }
 
-    def add_to_buffer(self, measurement_type, finger_name, value):
-        """Menambahkan pengukuran ke buffer"""
-        if measurement_type == 'finger_tips':
-            if finger_name not in self.measurement_buffer['finger_tips']:
-                self.measurement_buffer['finger_tips'][finger_name] = []
-            buffer = self.measurement_buffer['finger_tips'][finger_name]
-        else:
-            buffer = self.measurement_buffer[measurement_type]
+    def calculate_3d_distance(self, p1, p2):
+        """Calculate 3D distance between two landmarks"""
+        return math.sqrt(
+            (p1.x - p2.x)**2 + 
+            (p1.y - p2.y)**2 + 
+            (p1.z - p2.z)**2
+        ) * 1000  # Convert to millimeters for better precision
 
-        if len(buffer) >= self.buffer_size:
-            buffer.pop(0)
-        buffer.append(value)
-
-    def get_stable_measurement(self, measurements):
-        """Mendapatkan pengukuran stabil dengan filter outlier"""
-        if len(measurements) < 3:
+    def get_stable_measurement(self, measurements, threshold=2.0):
+        """Get stable measurement with improved outlier filtering"""
+        if len(measurements) < 5:  # Require more measurements for stability
             return None
             
-        # Hitung standard deviation
-        std = stdev(measurements)
-        avg = mean(measurements)
+        # Remove extreme outliers
+        sorted_measurements = sorted(measurements)
+        q1 = np.percentile(sorted_measurements, 25)
+        q3 = np.percentile(sorted_measurements, 75)
+        iqr = q3 - q1
+        lower_bound = q1 - threshold * iqr
+        upper_bound = q3 + threshold * iqr
         
-        # Filter measurements dalam 2 standard deviations
-        filtered = [m for m in measurements if abs(m - avg) <= 2 * std]
-        return mean(filtered) if filtered else None
+        filtered = [m for m in measurements if lower_bound <= m <= upper_bound]
+        
+        if len(filtered) < 3:
+            return None
+            
+        return mean(filtered)
 
-    def calculate_distance(self, p1, p2):
-        """Menghitung jarak antara dua titik"""
-        return math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2)
-
-    def estimate_forearm_endpoint(self, wrist_point, wrist_ref_point, extension_factor=2.5):
+    def estimate_forearm_endpoint(self, wrist_point, wrist_ref_point, extension_factor=2.0):
         """
         Memperkirakan titik akhir lengan bawah berdasarkan orientasi pergelangan tangan
+        dengan faktor ekstensi yang diperbarui
         """
+        # Hitung vektor arah dari wrist_ref ke wrist
         dx = wrist_point.x - wrist_ref_point.x
         dy = wrist_point.y - wrist_ref_point.y
+        dz = wrist_point.z - wrist_ref_point.z
         
+        # Perpanjang vektor dengan extension_factor
         end_point_x = wrist_point.x + (dx * extension_factor)
         end_point_y = wrist_point.y + (dy * extension_factor)
+        end_point_z = wrist_point.z + (dz * extension_factor)
         
-        class Point:
-            def __init__(self, x, y):
+        class Point3D:
+            def __init__(self, x, y, z):
                 self.x = x
                 self.y = y
+                self.z = z
         
-        return Point(end_point_x, end_point_y)
+        return Point3D(end_point_x, end_point_y, end_point_z)
 
     def get_hand_dimensions(self, landmarks):
-        """Menghitung dimensi tangan dengan stabilisasi pengukuran"""
-        if not landmarks:
+        """Calculate hand dimensions with improved accuracy"""
+        if not landmarks or not self.calibrator.is_calibrated:
             return None
             
         dimensions = {}
-        wrist = landmarks.landmark[self.forearm_landmarks['wrist']]
-        wrist_ref = landmarks.landmark[self.forearm_landmarks['wrist_end']]
         
-        # Estimasi titik akhir lengan bawah
+        # Get wrist point and reference points
+        wrist = landmarks.landmark[self.wrist_landmarks['wrist']]
+        wrist_ref = landmarks.landmark[self.wrist_landmarks['wrist_end']]
+        
+        # Calculate and add forearm measurement
         forearm_end = self.estimate_forearm_endpoint(wrist, wrist_ref)
-        
-        # Hitung panjang lengan bawah
-        forearm_length = self.calculate_distance(wrist, forearm_end)
+        forearm_length = self.calculate_3d_distance(wrist, forearm_end)
         forearm_length_cm = self.calibrator.pixels_to_cm(forearm_length)
-        self.add_to_buffer('forearm', None, forearm_length_cm)
         
-        # Ambil pengukuran stabil untuk lengan bawah
+        # Add to buffer for stability
+        if len(self.measurement_buffer['forearm']) >= self.buffer_size:
+            self.measurement_buffer['forearm'].pop(0)
+        self.measurement_buffer['forearm'].append(forearm_length_cm)
+        
+        # Get stable forearm measurement
         stable_forearm = self.get_stable_measurement(self.measurement_buffer['forearm'])
         if stable_forearm:
             dimensions['forearm_length'] = forearm_length
@@ -106,35 +121,47 @@ class DimensionCalculator:
                 'end': forearm_end
             }
         
-        # Hitung jarak dari pergelangan ke setiap ujung jari
-        for finger_name, tip_idx in self.finger_tips.items():
-            # Ujung jari ke pergelangan
-            finger_tip = landmarks.landmark[tip_idx]
-            wrist_to_tip = self.calculate_distance(wrist, finger_tip)
-            wrist_to_tip_cm = self.calibrator.pixels_to_cm(wrist_to_tip)
+        # Calculate palm width (distance between index and pinky MCP)
+        index_mcp = landmarks.landmark[self.finger_mcp['index']]
+        pinky_mcp = landmarks.landmark[self.finger_mcp['pinky']]
+        palm_width = self.calculate_3d_distance(index_mcp, pinky_mcp)
+        palm_width_cm = self.calibrator.pixels_to_cm(palm_width)
+        dimensions['palm_width_cm'] = palm_width_cm
+        
+        # Calculate finger lengths
+        for finger_name in self.finger_tips.keys():
+            # Full finger length (MCP to tip)
+            mcp = landmarks.landmark[self.finger_mcp[finger_name]]
+            tip = landmarks.landmark[self.finger_tips[finger_name]]
             
-            self.add_to_buffer('wrist_to_middle', None, wrist_to_tip_cm)
-            stable_wrist_to_tip = self.get_stable_measurement(
-                self.measurement_buffer['wrist_to_middle']
-            )
+            finger_length = self.calculate_3d_distance(mcp, tip)
+            finger_length_cm = self.calibrator.pixels_to_cm(finger_length)
             
-            if stable_wrist_to_tip:
-                dimensions[f'{finger_name}_length'] = wrist_to_tip
-                dimensions[f'{finger_name}_length_cm'] = stable_wrist_to_tip
+            # Store measurement in buffer
+            if finger_name not in self.measurement_buffer['finger_tips']:
+                self.measurement_buffer['finger_tips'][finger_name] = []
             
-            # Ujung jari ke ruas pertama (DIP)
-            dip_idx = self.finger_dips[finger_name]
-            dip = landmarks.landmark[dip_idx]
-            tip_to_dip = self.calculate_distance(finger_tip, dip)
+            buffer = self.measurement_buffer['finger_tips'][finger_name]
+            if len(buffer) >= self.buffer_size:
+                buffer.pop(0)
+            buffer.append(finger_length_cm)
+            
+            # Get stable measurement
+            stable_length = self.get_stable_measurement(buffer)
+            if stable_length:
+                dimensions[f'{finger_name}_length_cm'] = stable_length
+            
+            # Tip to DIP (last segment) length
+            dip = landmarks.landmark[self.finger_dips[finger_name]]
+            tip_to_dip = self.calculate_3d_distance(tip, dip)
             tip_to_dip_cm = self.calibrator.pixels_to_cm(tip_to_dip)
             
-            self.add_to_buffer('finger_tips', finger_name, tip_to_dip_cm)
-            stable_tip_to_dip = self.get_stable_measurement(
-                self.measurement_buffer['finger_tips'][finger_name]
-            )
-            
-            if stable_tip_to_dip:
-                dimensions[f'{finger_name}_tip_to_dip'] = tip_to_dip
-                dimensions[f'{finger_name}_tip_to_dip_cm'] = stable_tip_to_dip
-            
+            dimensions[f'{finger_name}_tip_to_dip_cm'] = tip_to_dip_cm
+        
+        # Calculate palm length (wrist to middle finger MCP)
+        middle_mcp = landmarks.landmark[self.finger_mcp['middle']]
+        palm_length = self.calculate_3d_distance(wrist, middle_mcp)
+        palm_length_cm = self.calibrator.pixels_to_cm(palm_length)
+        dimensions['palm_length_cm'] = palm_length_cm
+        
         return dimensions
